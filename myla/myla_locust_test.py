@@ -57,7 +57,7 @@ class UserActions(HttpUser):
     def view_course_assignments(self):
         self.client.get(f"courses/{self.course}/assignments", name="assignments")
 
-    @task
+    # Don't run this @task
     def view_course_assignmentsv1(self):
         self.client.get(f"courses/{self.course}/assignmentsv1", name="assignmentsv1")
 
@@ -71,7 +71,9 @@ class UserActions(HttpUser):
     def login(self):
         # login to the application
         response = self.client.get('accounts/login/')
-        csrftoken = response.cookies['csrftoken']
-        self.client.post('accounts/login/',
-                         {'username': self.username, 'password': self.password}, 
-                         headers={'X-CSRFToken': csrftoken})
+        # Need to set this for Django
+        self.client.headers['Referer'] = self.client.base_url
+        response = self.client.post('accounts/login/',
+                                    {'username': self.username, 'password': self.password,
+                                     'csrfmiddlewaretoken': response.cookies['csrftoken']})
+        logger.info (response)
