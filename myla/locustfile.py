@@ -1,6 +1,8 @@
-import random
+import json, logging, os, random
 from locust import HttpUser, task, between
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 def is_static_file(f):
     if "/sites/default/files" in f:
@@ -26,8 +28,8 @@ def fetch_static_assets(session, response):
 
 class UserActions(HttpUser):
     try:
-    with open(os.getenv("ENV_FILE", "env.hjson")) as f:
-        ENV = json.load(f)
+        with open(os.getenv("ENV_FILE", "env.hjson")) as f:
+            ENV = json.load(f)
     except FileNotFoundError as fnfe:
         logger.info("Default config file or one defined in environment variable ENV_FILE not found. This is normal for the build, should define for operation.")
         # Default ENV to os.environ
