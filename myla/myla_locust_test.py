@@ -48,22 +48,35 @@ class UserActions(HttpUser):
     @task
     def view_course_grades(self):
         self.client.get(f"courses/{self.course}/grades", name="grades")
+        # Get the user default selection for resource
+        self.client.get(f"api/v1/courses/{self.course}/get_user_default_selection/?default_type=grade")
+        # Get the data for this view
+        self.client.get(f"https://test-myla.tl.it.umich.edu/api/v1/courses/{self.course}/grade_distribution/")
 
     @task
     def view_course_resources(self):
         self.client.get(f"courses/{self.course}/resources", name="resources")
+        # Get the user default selection for resource
+        self.client.get(f"api/v1/courses/{self.course}/get_user_default_selection/?default_type=resource")
+        # Get the data for this view
+        self.client.get(f"api/v1/courses/{self.course}/resource_access_within_week/?week_num_start=1&week_num_end=17&grade=90-100&resource_type=Files")
+
 
     @task
-    def view_course_assignments(self):
-        self.client.get(f"courses/{self.course}/assignments", name="assignments")
-
-    # Don't run this @task
     def view_course_assignmentsv1(self):
         self.client.get(f"courses/{self.course}/assignmentsv1", name="assignmentsv1")
+        # Get the user default selection for assignment
+        self.client.get(f"api/v1/courses/{self.course}/get_user_default_selection/?default_type=assignmentv1")
+        # Get the data for this view
+        self.client.get(f"api/v1/courses/{self.course}/assignments/?percent=10")
 
     @task
     def view_course(self):
         self.client.get(f"courses/{self.course}", name="courses")
+    
+    # Don't run this @task for now
+    def view_course_assignments(self):
+        self.client.get(f"courses/{self.course}/assignments", name="assignments")
 
     def on_start(self):
         self.login()
@@ -76,4 +89,3 @@ class UserActions(HttpUser):
         response = self.client.post('accounts/login/',
                                     {'username': self.username, 'password': self.password,
                                      'csrfmiddlewaretoken': response.cookies['csrftoken']})
-        logger.info (response)
