@@ -1,8 +1,12 @@
-import json, logging, os, random
-from locust import HttpUser, task, between
-from bs4 import BeautifulSoup
+import logging, os, random
 
+from bs4 import BeautifulSoup
+import hjson
+from locust import HttpUser, task, between
+
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def is_static_file(f):
     if "/sites/default/files" in f:
@@ -29,44 +33,46 @@ def fetch_static_assets(session, response):
 class UserActions(HttpUser):
     try:
         with open(os.getenv("ENV_FILE", "env.hjson")) as f:
-            ENV = json.load(f)
+            ENV = hjson.load(f)
+            logger.debug(ENV)
     except FileNotFoundError as fnfe:
         logger.info("Default config file or one defined in environment variable ENV_FILE not found. This is normal for the build, should define for operation.")
         # Default ENV to os.environ
         ENV = os.environ
 
+
     username= ENV.get("username")
     password = ENV.get("password")
     course = ENV.get("course")
-    wait_time = between(ENV.get("wait")[0], ENV.get("wait")[1])
+    wait_time = between(ENV.get("wait_time")[0], ENV.get("wait_time")[1])
 
     @task
     def view_course_grades(self):
-        self.client.get(f"/courses/{self.course}/grades", name="grades")
+        self.client.get(f"courses/{self.course}/grades", name="grades")
 
     @task
     def view_course_resources(self):
-        self.client.get(f"/courses/{self.course}/resources", name="resources")
+        self.client.get(f"courses/{self.course}/resources", name="resources")
 
     @task
     def view_course_assignments(self):
-        self.client.get(f"/courses/{self.course}/assignments", name="assignments")
+        self.client.get(f"courses/{self.course}/assignments", name="assignments")
 
     @task
     def view_course_assignmentsv1(self):
-        self.client.get(f"/courses/{self.course}/assignmentsv1", name="assignmentsv1")
+        self.client.get(f"courses/{self.course}/assignmentsv1", name="assignmentsv1")
 
     @task
     def view_course(self):
-        self.client.get(f"/courses/{self.course}", name="courses")
+        self.client.get(f"courses/{self.course}", name="courses")
 
     def on_start(self):
         self.login()
 
     def login(self):
         # login to the application
-        response = self.client.get('/accounts/login/')
+        response = self.client.get('accounts/login/')
         csrftoken = response.cookies['csrftoken']
-        self.client.post('/accounts/login/',
+        self.client.post('accounts/login/',
                          {'username': self.username, 'password': self.password}, 
                          headers={'X-CSRFToken': csrftoken})
