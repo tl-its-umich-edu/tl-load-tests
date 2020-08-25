@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import hjson
 from locust import HttpUser, task, between
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -35,11 +35,10 @@ class UserActions(HttpUser):
         with open(os.getenv("ENV_FILE", "env.hjson")) as f:
             ENV = hjson.load(f)
             logger.debug(ENV)
-    except FileNotFoundError as fnfe:
+    except FileNotFoundError:
         logger.info("Default config file or one defined in environment variable ENV_FILE not found. This is normal for the build, should define for operation.")
         # Default ENV to os.environ
         ENV = os.environ
-
 
     username= ENV.get("username")
     password = ENV.get("password")

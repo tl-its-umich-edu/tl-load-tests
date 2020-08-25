@@ -2,8 +2,8 @@
   // Copy this to env.json and make changes
   // Make sure to create this user in your MyLA site as a regular user in a course
 
-  username: test,
-  password: test,
+  username: "test",
+  password: "test",
   course: 123456,
   wait_time: [5, 30]
 
