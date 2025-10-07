@@ -1,0 +1,13 @@
+{
+  // Copy this to env.json and make changes
+  // Make sure to create this user in your MyLA site as a regular user in a course
+
+  username: "test",
+  password: "test",
+  course_id: 123456,
+  external_tool_id: 75304,
+  wait_time: [5, 30],
+  lti_host: "https://ccm-dev.tl.it.umich.edu/",
+  run_create_tasks: False,
+  user_is_admin: False
+}
