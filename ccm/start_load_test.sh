@@ -7,7 +7,7 @@ PEAK_USERS=30
 # How many users a second to add
 SPAWN_RATE=0.2
 # Host should have a trailing slash
-HOST=https://canvas-test.it.umich.edu/
+HOST="https://ccm-dev.tl.it.umich.edu/"
 # Log Level
 LOG_LEVEL=INFO
 

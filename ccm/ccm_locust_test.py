@@ -66,12 +66,6 @@ class CanvasCourseManagerUser(HttpUser):
         self.password = ENV.get("password")
         self.course_id = ENV.get("course_id")
         self.external_tool_id = ENV.get("external_tool") 
-        self.lti_host = ENV.get("lti_host")
-        self.lti = HttpSession(
-            base_url=self.lti_host,
-            request_event=self.environment.events.request,
-            user=self
-        ) 
 
         self.user_is_admin = ENV.get("user_is_admin", False)
         self.run_create_tasks = ENV.get("run_create_tasks", False)
@@ -82,42 +76,23 @@ class CanvasCourseManagerUser(HttpUser):
         self.wait_time = between(wait_time_values[0], wait_time_values[1])
 
     def on_start(self):
-        self._canvas_login()
-        self._lti_login()
+        self._ccm_login()
 
-
-    def _canvas_login(self):
+    def _ccm_login(self):
         # login to the application
-        response = self.client.get('login/canvas/')
-        # Need to set this for Django
-        self.client.headers['Referer'] = self.client.base_url
+        response = self.client.get('admin/')
 
-        # Get Authenticity token from the login page
+        # Login to the Django Admin page, need to provide a referrer
+        self.client.headers['Referer'] = self.client.base_url + 'admin/login/'
+        # Also need to provide a CSRF token 
         soup = BeautifulSoup(response.text, "html.parser")
-        token_input = soup.find('input', {'name': 'authenticity_token'})
-        if token_input is not None:
-            token = token_input.get('value')
-            # Post to the login form
-            response = self.client.post('login/canvas/',
-                                        {'pseudonym_session[unique_id]': self.username, 'pseudonym_session[password]': self.password,
-                                         'authenticity_token': token})
-        else:
-            logger.error("Authenticity token input not found in login page.")
-            raise RuntimeError("Authenticity token input not found in login page.")
+        csrf_token = soup.find('input', {'name': 'csrfmiddlewaretoken'})['value']
+        self.client.cookies.set('csrftoken', csrf_token)
 
-    def _lti_login(self):
-        # Access the LTI launch URL to start the LTI session
-        response = self.lti.get(f"courses/{self.course_id}/external_tools/{self.external_tool_id}/", name="LTI Launch")
+        response = self.client.post('admin/login/?next=/admin/', {'username': self.username, 'password': self.password, 'csrfmiddlewaretoken': csrf_token})
         if response.status_code != 200:
-            logger.error(f"LTI launch failed with status code {response.status_code}")
-            raise RuntimeError(f"LTI launch failed with status code {response.status_code}")
-
-        if "sessionid" in response.cookies:
-            self.lti.headers.update({"X-CSRFToken": response.cookies["sessionid"]})
-            self.lti.cookies.set("csrftoken", response.cookies["sessionid"])
-        else:
-            logger.error("sessionid cookie not found after LTI launch.")
-            raise RuntimeError("sessionid cookie not found after LTI launch.")
+            logger.error("Failed to log in to Django admin.")
+            raise RuntimeError("Failed to log in to Django admin.")
 
     # --- Admin endpoints ------------------------------------------------------
 
@@ -135,7 +110,7 @@ class CanvasCourseManagerUser(HttpUser):
             for _ in range(random.randint(1, 3))
         ]
         payload = {"users": users}
-        self.lti.post("/api/admin/createExternalUsers", json=payload, name="createExternalUsers")
+        self.client.post("/api/admin/createExternalUsers", json=payload, name="createExternalUsers")
 
     @task(1)
     def get_admin_sections(self):
@@ -146,7 +121,7 @@ class CanvasCourseManagerUser(HttpUser):
             "term_id": random_term_id(),
             "course_name": "ENG101"
         }
-        self.lti.get("/api/admin/sections/", params=params, name="get_admin_sections")
+        self.client.get("/api/admin/sections/", params=params, name="get_admin_sections")
 
     # --- Course endpoints -----------------------------------------------------
 
@@ -157,7 +132,7 @@ class CanvasCourseManagerUser(HttpUser):
             return
         course_id = random_course_id()
         payload = {"newName": f"UpdatedCourse-{course_id}"}
-        self.lti.put(f"/api/course/{course_id}", json=payload, name="update_course")
+        self.client.put(f"/api/course/{course_id}", json=payload, name="update_course")
 
     @task(2)
     def create_course_sections(self):
@@ -168,7 +143,7 @@ class CanvasCourseManagerUser(HttpUser):
         payload = {
             "sections": [f"Section-{i}" for i in range(random.randint(1, 3))]
         }
-        self.lti.post(f"/api/course/{course_id}/sections", json=payload, name="create_course_sections")
+        self.client.post(f"/api/course/{course_id}/sections", json=payload, name="create_course_sections")
 
     @task(2)
     def merge_sections(self):
@@ -177,7 +152,7 @@ class CanvasCourseManagerUser(HttpUser):
             return
         course_id = random_course_id()
         payload = {"sectionIds": [random_section_id() for _ in range(3)]}
-        self.lti.post(f"/api/course/{course_id}/sections/merge", json=payload, name="merge_sections")
+        self.client.post(f"/api/course/{course_id}/sections/merge", json=payload, name="merge_sections")
 
     # --- Enrollment endpoints -------------------------------------------------
 
@@ -196,14 +171,14 @@ class CanvasCourseManagerUser(HttpUser):
             for _ in range(random.randint(1, 3))
         ]
         payload = {"enrollments": enrollments}
-        self.lti.post(f"/api/course/{course_id}/sections/enroll", json=payload, name="enroll_in_multiple_sections")
+        self.client.post(f"/api/course/{course_id}/sections/enroll", json=payload, name="enroll_in_multiple_sections")
 
     @task(1)
     def get_section_enrollments(self):
         """GET /api/sections/students"""
         ids = [random_section_id() for _ in range(3)]
         params = {"section_ids": ",".join(map(str, ids))}
-        self.lti.get("/api/sections/students", params=params, name="get_section_enrollments")
+        self.client.get("/api/sections/students", params=params, name="get_section_enrollments")
 
     # --- Instructor endpoints -------------------------------------------------
 
@@ -211,14 +186,10 @@ class CanvasCourseManagerUser(HttpUser):
     def get_instructor_sections(self):
         """GET /api/instructor/sections"""
         params = {"term_id": random_term_id()}
-        self.lti.get("/api/instructor/sections", params=params, name="get_instructor_sections")
+        self.client.get("/api/instructor/sections", params=params, name="get_instructor_sections")
 
     # --- General UI tasks ------------------------------------------------------
     @task(1)
     def view_ccm_home(self):
-        response = self.client.get(f"courses/{self.course_id}/external_tools/{self.external_tool_id}/", name="view ccm home")
+        response = self.client.get(f"/", name="view ccm home")
         fetch_static_assets(self, response)
-
-    @task(1)
-    def view_course(self):
-        self.client.get(f"courses/{self.course_id}/", name="courses")
