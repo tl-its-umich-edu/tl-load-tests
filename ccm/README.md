@@ -7,7 +7,7 @@ This is the basic start of load tests for CCM. This has a few pre-setup requirem
 
 2. A user needs to be created on the Canvas Server where this tool will be launched from. This load test currently uses a backdoor login to avoid going through the LTI workflow, but the user needs to get a token into the system.
 
-So you need to create a local user in Canvas Then login or act as them, enroll them in the course and launch/authorize the development CCM tool to get them into the CCM database. 
+So you need to create a local user in Canvas, then either login or act as them. Enroll them in the course as instructor and launch/authorize the development CCM tool to get them into the CCM database. 
 
 Alternatively they can be created with the [load-testing-users](https://github.com/tl-its-umich-edu/load-testing-users) script.
 
@@ -20,6 +20,7 @@ Alternatively they can be created with the [load-testing-users](https://github.c
 TODOs:
 * Support more than one unique login user. Probably reading users from a CSV style similar to load-testing-users.
 * Fix all tests that are currently disabled (all create tasks are disabled)
+* Test admin actions?
 
 ### Run in venv
 python3 -m venv venv
