@@ -51,29 +51,33 @@ def random_course_id():
 def random_section_id():
     return random.randint(10000, 99999)
 
+try:
+    with open(os.getenv("ENV_FILE", "env.hjson")) as f:
+        ENV = hjson.load(f)
+        logger.debug(ENV)
+except FileNotFoundError:
+    raise RuntimeError("Default config file or one defined in environment variable ENV_FILE not found.")
+
+wait_time_values = ENV.get("wait_time", [1, 2])
+if len(wait_time_values) < 2:
+    wait_time_values = [1, 2]
+logger.info("Setting wait time between %s and %s seconds", wait_time_values[0], wait_time_values[1])
+wait_time = between(wait_time_values[0], wait_time_values[1])
+
 class CanvasCourseManagerUser(HttpUser):
 
+    wait_time = between(wait_time_values[0], wait_time_values[1])
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        try:
-            with open(os.getenv("ENV_FILE", "env.hjson")) as f:
-                ENV = hjson.load(f)
-                logger.debug(ENV)
-        except FileNotFoundError:
-            raise RuntimeError("Default config file or one defined in environment variable ENV_FILE not found.")
-
+ 
         self.username = ENV.get("username")
         self.password = ENV.get("password")
         self.course_id = ENV.get("course_id")
+        self.section_ids = ENV.get("section_ids", [])
         self.external_tool_id = ENV.get("external_tool") 
 
         self.user_is_admin = ENV.get("user_is_admin", False)
         self.run_create_tasks = ENV.get("run_create_tasks", False)
-
-        wait_time_values = ENV.get("wait_time", [1, 2])
-        if len(wait_time_values) < 2:
-            wait_time_values = [1, 2]
-        self.wait_time = between(wait_time_values[0], wait_time_values[1])
 
     def on_start(self):
         self._ccm_login()
@@ -176,8 +180,7 @@ class CanvasCourseManagerUser(HttpUser):
     @task(1)
     def get_section_enrollments(self):
         """GET /api/sections/students"""
-        ids = [random_section_id() for _ in range(3)]
-        params = {"section_ids": ",".join(map(str, ids))}
+        params = {"section_ids": ",".join(map(str, self.section_ids))}
         self.client.get("/api/sections/students", params=params, name="get_section_enrollments")
 
     # --- Instructor endpoints -------------------------------------------------

@@ -5,7 +5,7 @@
 # Peak users to load test
 PEAK_USERS=30
 # How many users a second to add
-SPAWN_RATE=0.2
+SPAWN_RATE=0.5
 # Host should have a trailing slash
 HOST="https://ccm-dev.tl.it.umich.edu/"
 # Log Level
